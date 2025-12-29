@@ -91,7 +91,9 @@ class _RawTouchGestureDetectorRegionState
   // Timestamp of the last long press event.
   int _cacheLongPressPositionTs = 0;
   double _mouseScrollIntegral = 0; // mouse scroll speed controller
+  double _zoomIntegral = 0;
   double _scale = 1;
+  bool _isRightDrag = false;
 
   // Workaround tap down event when two fingers are used to scale(mobile)
   TapDownDetails? _lastTapDownDetails;
@@ -242,7 +244,12 @@ class _RawTouchGestureDetectorRegionState
       return;
     }
     if (handleTouch) {
-      await inputModel.tapUp(MouseButtons.left);
+      if (_isRightDrag) {
+        await inputModel.sendMouse('up', MouseButtons.right);
+        _isRightDrag = false;
+      } else {
+        await inputModel.tapUp(MouseButtons.left);
+      }
     }
   }
 
@@ -258,12 +265,18 @@ class _RawTouchGestureDetectorRegionState
         if (!isMoved) {
           return;
         }
+        // Ideal Global Control: Long press = Right Click / Right Drag
+        // Release the Left button held by onLongPressDown
+        await inputModel.tapUp(MouseButtons.left);
+        // Press Right button
+        await inputModel.sendMouse('down', MouseButtons.right);
+        _isRightDrag = true;
       } else {
         if (shouldBlockMouseModeEvent()) {
           return;
         }
+        await inputModel.tap(MouseButtons.right);
       }
-      await inputModel.tap(MouseButtons.right);
     } else {
       // It's better to send a message to tell the controlled device that the long press event is triggered.
       // We're now using a `TimerTask` in `InputService.kt` to decide whether to trigger the long press event.
@@ -272,7 +285,7 @@ class _RawTouchGestureDetectorRegionState
   }
 
   onLongPressMoveUpdate(LongPressMoveUpdateDetails d) async {
-    if (!ffiModel.isPeerMobile || isNotTouchBasedDevice()) {
+    if (isNotTouchBasedDevice()) {
       return;
     }
     if (handleTouch) {
@@ -416,6 +429,9 @@ class _RawTouchGestureDetectorRegionState
   // scale + pan event
   onTwoFingerScaleStart(ScaleStartDetails d) {
     _lastTapDownDetails = null;
+    _scale = 1.0;
+    _zoomIntegral = 0;
+    _mouseScrollIntegral = 0;
     if (isNotTouchBasedDevice()) {
       return;
     }
@@ -439,24 +455,33 @@ class _RawTouchGestureDetectorRegionState
       return;
     }
 
-    if ((isDesktop || isWebDesktop)) {
-      final scale = ((d.scale - _scale) * 1000).toInt();
-      _scale = d.scale;
+    // Ideal Global Control
+    // 1. Scroll (Two Finger Pan)
+    // 2. Ctrl + Scroll (Two Finger Scale)
 
-      if (scale != 0) {
-        if (widget.isCamera) return;
-        await bind.sessionSendPointer(
-            sessionId: sessionId,
-            msg: json.encode(
-                PointerEventToRust(kPointerEventKindTouch, 'scale', scale)
-                    .toJson()));
+    final scaleDelta = d.scale - _scale;
+    _scale = d.scale;
+
+    // Handle Scroll (Pan)
+    _mouseScrollIntegral += d.focalPointDelta.dy / 4.0;
+    if (_mouseScrollIntegral.abs() > 1.0) {
+      final steps = _mouseScrollIntegral.truncate();
+      if (steps != 0) {
+        await inputModel.scroll(steps);
+        _mouseScrollIntegral -= steps;
       }
-    } else {
-      // mobile
-      ffi.canvasModel.updateScale(d.scale / _scale, d.focalPoint);
-      _scale = d.scale;
-      ffi.canvasModel.panX(d.focalPointDelta.dx);
-      ffi.canvasModel.panY(d.focalPointDelta.dy);
+    }
+
+    // Handle Ctrl+Scroll (Zoom)
+    _zoomIntegral += scaleDelta * 5.0;
+    if (_zoomIntegral.abs() > 1.0) {
+      final steps = _zoomIntegral.truncate();
+      if (steps != 0) {
+        inputModel.ctrl = true;
+        await inputModel.scroll(steps);
+        inputModel.ctrl = false;
+        _zoomIntegral -= steps;
+      }
     }
   }
 
@@ -464,18 +489,11 @@ class _RawTouchGestureDetectorRegionState
     if (isNotTouchBasedDevice()) {
       return;
     }
-    if ((isDesktop || isWebDesktop)) {
-      if (widget.isCamera) return;
-      await bind.sessionSendPointer(
-          sessionId: sessionId,
-          msg: json.encode(
-              PointerEventToRust(kPointerEventKindTouch, 'scale', 0).toJson()));
-    } else {
-      // mobile
-      _scale = 1;
-      // No idea why we need to set the view style to "" here.
-      // bind.sessionSetViewStyle(sessionId: sessionId, value: "");
-    }
+    
+    _scale = 1;
+    _zoomIntegral = 0;
+    _mouseScrollIntegral = 0;
+
     if (!isSpecialHoldDragActive) {
       await inputModel.sendMouse('up', MouseButtons.left);
     }
