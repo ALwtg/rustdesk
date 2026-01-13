@@ -9,6 +9,18 @@ on:
       upload-tag:
         type: string
         default: "nightly"
+  # 添加手动触发按钮 (Actions 页面可见)
+  workflow_dispatch:
+    inputs:
+      upload-artifact:
+        description: 'Whether to upload artifact (true/false)'
+        type: boolean
+        default: true
+      upload-tag:
+        description: 'Tag name for the release'
+        type: string
+        default: "nightly"
+
 
 env:
   CARGO_NDK_VERSION: "3.1.2"
