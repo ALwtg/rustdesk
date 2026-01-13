@@ -428,7 +428,7 @@ class _RawTouchGestureDetectorRegionState
   }
 
   // scale + pan event
-  onTwoFingerScaleStart(ScaleStartDetails d) {
+  onTwoFingerScaleStart(ScaleStartDetails d) async {
     _lastTapDownDetails = null;
     if (isNotTouchBasedDevice()) {
       return;
@@ -436,6 +436,11 @@ class _RawTouchGestureDetectorRegionState
     if (isSpecialHoldDragActive) {
       // Initialize the last focal point to calculate deltas manually.
       _lastSpecialHoldDragFocalPoint = d.focalPoint;
+    } else {
+      if (handleTouch) {
+        // Move mouse to center of fingers at start
+        await ffi.cursorModel.move(d.focalPoint.dx, d.focalPoint.dy);
+      }
     }
   }
 
@@ -475,10 +480,11 @@ class _RawTouchGestureDetectorRegionState
       // Feature 1: Two finger drag = Scroll
       // Disable zoom/pan canvas
       
-      if (handleTouch) {
-        // Move mouse to center of fingers
-        await ffi.cursorModel.move(d.focalPoint.dx, d.focalPoint.dy);
-      }
+      // Removed mouse move on update to keep it fixed at start position
+      // if (handleTouch) {
+      //   // Move mouse to center of fingers
+      //   await ffi.cursorModel.move(d.focalPoint.dx, d.focalPoint.dy);
+      // }
 
       double dy = d.focalPointDelta.dy;
       _mouseScrollIntegral += dy / 5; // Sensitivity adjustment

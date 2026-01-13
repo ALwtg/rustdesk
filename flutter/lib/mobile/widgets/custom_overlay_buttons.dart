@@ -107,6 +107,14 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
     bool shift = btn.keys.contains('shift');
     bool command = btn.keys.contains('command');
     
+    // Update InputModel state if it's a hold action (down != null)
+    if (down != null) {
+      if (ctrl) widget.inputModel.ctrl = down;
+      if (alt) widget.inputModel.alt = down;
+      if (shift) widget.inputModel.shift = down;
+      if (command) widget.inputModel.command = down;
+    }
+
     String? key;
     for (var k in btn.keys) {
       if (!['control', 'alt', 'shift', 'command'].contains(k)) {
@@ -116,13 +124,8 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
     }
 
     if (key == null && (ctrl || alt || shift || command)) {
-      // Only modifiers
-       // RustDesk might expect a key name.
-       // If only modifiers, we can send a dummy key or handle it differently?
-       // Actually sessionInputKey handles modifiers. If name is empty, it might work?
-       // But usually we send a key.
-       // If the button is just "Ctrl", we should send "control" as the key name?
-       // Let's use the first modifier as the key if no other key.
+       // Only modifiers
+       // Use the first modifier as the key name for sessionInputKey
        key = btn.keys.first;
     }
     
@@ -146,23 +149,45 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
     final labelController = TextEditingController(text: config.label);
     final keysController = TextEditingController(text: config.keys.join(' '));
 
+    final shortcuts = ['control', 'alt', 'shift', 'command', 'win', 'delete', 'esc', 'tab'];
+
     Get.dialog(
       AlertDialog(
         title: Text(isNew ? 'Add Button' : 'Edit Button'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: labelController,
-              decoration: const InputDecoration(labelText: 'Label (e.g. Ctrl+C)'),
-            ),
-            TextField(
-              controller: keysController,
-              decoration: const InputDecoration(labelText: 'Keys (space sep, e.g. control c)'),
-            ),
-            const SizedBox(height: 10),
-            const Text('Supported: control, alt, shift, command, a-z, 0-9, f1-f12...'),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelController,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Label (e.g. Ctrl+C)'),
+              ),
+              TextField(
+                controller: keysController,
+                decoration: const InputDecoration(labelText: 'Keys (space sep, e.g. control c)'),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                children: shortcuts.map((k) => ActionChip(
+                  label: Text(k),
+                  onPressed: () {
+                    final current = keysController.text.trim();
+                    keysController.text = current.isEmpty ? k : '$current $k';
+                    // Update label if empty or simple append
+                    if (labelController.text.isEmpty) {
+                      labelController.text = k == 'control' ? 'Ctrl' : k.capitalizeFirst!;
+                    } else if (!labelController.text.contains('+') && labelController.text.length < 5) {
+                       // Try to smart append label? Maybe not.
+                    }
+                  },
+                )).toList(),
+              ),
+              const SizedBox(height: 10),
+              const Text('Supported: control, alt, shift, command, a-z, 0-9, f1-f12...'),
+            ],
+          ),
         ),
         actions: [
           if (!isNew)
@@ -299,13 +324,13 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
           child: GestureDetector(
             onTap: () {
                // Toggle logic
-               // Since we don't have direct access to keyboard state, we toggle a flag
-               // and send show/hide commands.
-               // Note: 'TextInput.hide' might not work if not focused, but worth a try.
                if (MediaQuery.of(context).viewInsets.bottom > 0) {
+                   // Hide keyboard
                    gFFI.invokeMethod("enable_soft_keyboard", false);
                    SystemChannels.textInput.invokeMethod('TextInput.hide');
+                   FocusManager.instance.primaryFocus?.unfocus();
                } else {
+                   // Show keyboard
                    gFFI.invokeMethod("enable_soft_keyboard", true);
                    SystemChannels.textInput.invokeMethod('TextInput.show');
                }
