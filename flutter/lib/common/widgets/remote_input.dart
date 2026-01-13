@@ -242,7 +242,8 @@ class _RawTouchGestureDetectorRegionState
       return;
     }
     if (handleTouch) {
-      await inputModel.tapUp(MouseButtons.left);
+      // await inputModel.tapUp(MouseButtons.left);
+      await inputModel.sendMouse('up', MouseButtons.right);
     }
   }
 
@@ -258,12 +259,13 @@ class _RawTouchGestureDetectorRegionState
         if (!isMoved) {
           return;
         }
+        await inputModel.sendMouse('down', MouseButtons.right);
       } else {
         if (shouldBlockMouseModeEvent()) {
           return;
         }
+        await inputModel.tap(MouseButtons.right);
       }
-      await inputModel.tap(MouseButtons.right);
     } else {
       // It's better to send a message to tell the controlled device that the long press event is triggered.
       // We're now using a `TimerTask` in `InputService.kt` to decide whether to trigger the long press event.
@@ -273,6 +275,13 @@ class _RawTouchGestureDetectorRegionState
 
   onLongPressMoveUpdate(LongPressMoveUpdateDetails d) async {
     if (!ffiModel.isPeerMobile || isNotTouchBasedDevice()) {
+      // Allow right drag for desktop peers too
+      if (handleTouch && !ffiModel.isPeerMobile) {
+         if (!ffi.cursorModel.isInRemoteRect(d.localPosition)) {
+          return;
+        }
+        await ffi.cursorModel.move(d.localPosition.dx, d.localPosition.dy);
+      }
       return;
     }
     if (handleTouch) {
@@ -453,10 +462,30 @@ class _RawTouchGestureDetectorRegionState
       }
     } else {
       // mobile
-      ffi.canvasModel.updateScale(d.scale / _scale, d.focalPoint);
-      _scale = d.scale;
-      ffi.canvasModel.panX(d.focalPointDelta.dx);
-      ffi.canvasModel.panY(d.focalPointDelta.dy);
+      // ffi.canvasModel.updateScale(d.scale / _scale, d.focalPoint);
+      // _scale = d.scale;
+      // ffi.canvasModel.panX(d.focalPointDelta.dx);
+      // ffi.canvasModel.panY(d.focalPointDelta.dy);
+
+      // Feature 1: Two finger drag = Scroll
+      // Disable zoom/pan canvas
+      
+      if (handleTouch) {
+        // Move mouse to center of fingers
+        await ffi.cursorModel.move(d.focalPoint.dx, d.focalPoint.dy);
+      }
+
+      double dy = d.focalPointDelta.dy;
+      _mouseScrollIntegral += dy / 5; // Sensitivity adjustment
+
+      // Slide Down (dy > 0) -> Wheel Up (scroll -1)
+      if (_mouseScrollIntegral > 1) {
+        inputModel.scroll(-1);
+        _mouseScrollIntegral = 0;
+      } else if (_mouseScrollIntegral < -1) {
+        inputModel.scroll(1);
+        _mouseScrollIntegral = 0;
+      }
     }
   }
 
