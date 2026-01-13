@@ -630,9 +630,10 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
               ffi: gFFI,
             ));
           }
-          // Add Custom Overlay Buttons
-          if (gFFI.ffiModel.isPeerAndroid || true) { // Enabled for all or specific check? User implied Android.
-             paints.add(CustomOverlayButtons(inputModel: gFFI.inputModel));
+          if (isMobile) {
+            paints.add(Positioned.fill(
+              child: CustomOverlayButtons(inputModel: gFFI.inputModel),
+            ));
           }
           return paints;
         }()));

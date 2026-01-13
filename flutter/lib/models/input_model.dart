@@ -904,7 +904,7 @@ class InputModel {
   void onPointerPanZoomUpdate(PointerPanZoomUpdateEvent e) {
     if (isViewOnly) return;
     if (isViewCamera) return;
-    if (peerPlatform != kPeerPlatformAndroid) {
+    if ((isDesktop || isWebDesktop) && peerPlatform != kPeerPlatformAndroid) {
       final scale = ((e.scale - _lastScale) * 1000).toInt();
       _lastScale = e.scale;
 

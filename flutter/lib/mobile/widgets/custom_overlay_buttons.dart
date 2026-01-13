@@ -203,12 +203,26 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    double clampDouble(double v, double min, double max) =>
+        v.clamp(min, max).toDouble();
+    Offset clampOffset(Offset p, double w, double h) {
+      final maxX = (screenSize.width - w);
+      final maxY = (screenSize.height - h);
+      return Offset(
+        clampDouble(p.dx, 0, maxX > 0 ? maxX : 0),
+        clampDouble(p.dy, 0, maxY > 0 ? maxY : 0),
+      );
+    }
+
+    final togglePosClamped = clampOffset(togglePos, 40, 40);
+    final keyboardTogglePosClamped = clampOffset(keyboardTogglePos, 40, 40);
     return Stack(
       children: [
         if (showButtons)
           ...buttons.map((btn) => Positioned(
-            left: btn.x,
-            top: btn.y,
+            left: clampDouble(btn.x, 0, (screenSize.width - 80) > 0 ? (screenSize.width - 80) : 0),
+            top: clampDouble(btn.y, 0, (screenSize.height - 40) > 0 ? (screenSize.height - 40) : 0),
             child: GestureDetector(
               onTap: () {
                 _sendKey(btn, press: true);
@@ -248,8 +262,8 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
         
         // Toggle Button
         Positioned(
-          left: togglePos.dx,
-          top: togglePos.dy,
+          left: togglePosClamped.dx,
+          top: togglePosClamped.dy,
           child: GestureDetector(
             onTap: () {
               setState(() {
@@ -280,8 +294,8 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
 
         // Keyboard Toggle
         Positioned(
-          left: keyboardTogglePos.dx,
-          top: keyboardTogglePos.dy,
+          left: keyboardTogglePosClamped.dx,
+          top: keyboardTogglePosClamped.dy,
           child: GestureDetector(
             onTap: () {
                // Toggle logic

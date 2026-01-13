@@ -116,9 +116,14 @@ class _RawTouchGestureDetectorRegionState
 
   @override
   Widget build(BuildContext context) {
-    return RawGestureDetector(
-      child: widget.child,
-      gestures: makeGestures(context),
+    return Listener(
+      onPointerDown: (event) {
+        lastDeviceKind = event.kind;
+      },
+      child: RawGestureDetector(
+        child: widget.child,
+        gestures: makeGestures(context),
+      ),
     );
   }
 
