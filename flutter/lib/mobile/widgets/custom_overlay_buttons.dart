@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../common.dart';
+import '../../models/platform_model.dart';
 import '../../models/input_model.dart';
 
 class OverlayButtonConfig {
@@ -288,8 +289,10 @@ class _CustomOverlayButtonsState extends State<CustomOverlayButtons> {
                // and send show/hide commands.
                // Note: 'TextInput.hide' might not work if not focused, but worth a try.
                if (MediaQuery.of(context).viewInsets.bottom > 0) {
+                   gFFI.invokeMethod("enable_soft_keyboard", false);
                    SystemChannels.textInput.invokeMethod('TextInput.hide');
                } else {
+                   gFFI.invokeMethod("enable_soft_keyboard", true);
                    SystemChannels.textInput.invokeMethod('TextInput.show');
                }
             },
