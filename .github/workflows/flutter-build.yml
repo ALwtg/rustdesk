@@ -78,6 +78,7 @@ jobs:
       fail-fast: false
 
   build-for-windows-flutter:
+    if: false
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
@@ -448,8 +449,8 @@ jobs:
           files: |
             ./SignOutput/rustdesk-*.exe
 
-  build-lse
-    if: ${{ inputs.upload-artifact }}
+  build-rustdesk-ios:
+    if: false
     name: build rustdesk ios ipa
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -788,6 +789,7 @@ jobs:
             rustdesk*-${{ matrix.job.arch }}.dmg
 
   publish_unsigned:
+    if: false
     needs:
       - build-for-macOS
       - build-for-windows-flutter
@@ -1645,7 +1647,7 @@ jobs:
             res/rustdesk-${{ env.VERSION }}*.zst
 
   build-rustdesk-linux-sciter:
-    if: ${{ inputs.upload-artifact }}
+    if: false
     runs-on: ${{ matrix.job.on }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
     strategy:
